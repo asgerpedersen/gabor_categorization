@@ -1,0 +1,55 @@
+data {
+    int<lower=1> N;                       
+    vector[N] s;                          
+    vector[N] c;                          
+
+    array[N] int<lower=1, upper=2> response;
+
+    real<lower=0> sigma1;                 
+    real<lower=0> sigma2;                 
+}
+
+parameters {
+    real<lower=0, upper=50> alpha; 
+    real<lower=0, upper=8> beta; 
+    real<lower=0, upper=30> gamma;
+    real<lower=0, upper=0.5> lambda; 
+}
+
+transformed parameters {
+    vector[N] sigma;     
+    vector[N] k;         
+
+    for (i in 1:N) {
+
+        sigma[i] = sqrt( (alpha * c[i])^(-beta) + gamma );
+
+        real k1 = 0.5 * log( (square(sigma[i]) + square(sigma2)) /
+                              (square(sigma[i]) + square(sigma1)) );
+
+        real k2 = (square(sigma2) - square(sigma1)) /
+                   (2 * (square(sigma[i]) + square(sigma1)) *
+                        (square(sigma[i]) + square(sigma2)));
+
+        k[i] = sqrt(k1 / k2);
+    }
+}
+
+model {
+
+    for (i in 1:N) {
+
+        real p_cat1 = 0.5 * (
+            erf( (s[i] + k[i]) / (sigma[i] * sqrt(2)) ) -
+            erf( (s[i] - k[i]) / (sigma[i] * sqrt(2)) )
+        );
+
+        // prob lambda gætter deltageren (0.5/0.5)
+         real p_cat1_lapse = (1 - lambda) * p_cat1 + lambda * 0.5;
+
+        // response==1  1 ellers 0
+        target += bernoulli_lpmf(response[i] == 1 | p_cat1_lapse);
+    }
+
+}
+

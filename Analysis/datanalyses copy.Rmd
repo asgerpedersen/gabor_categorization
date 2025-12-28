@@ -1,0 +1,690 @@
+---
+title: "DATA"
+output: html_document
+date: "2025-12-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setting up
+
+Download libraries
+
+```{r}
+library("rstatix") 
+library("ggplot2")
+library("nlme")
+library("purrr")
+library("brms")
+library("lme4")
+library(lmerTest) 
+library(multcomp)
+library(dplyr)
+library(tidyverse)
+library(scales)
+library(dplyr)
+library(ggplot2)
+library(cmdstanr)
+library(tidyr)
+library(ggeffects)
+
+```
+
+Download and make dataframe with all participants
+
+```{r}
+df <- read_delim("subject_000.csv",delim=";") %>%mutate(subject = "000")
+df1 <- read_delim("subject_010.csv",delim=";") %>%mutate(subject = "001")
+df2 <- read_delim("subject_002.csv",delim=";") %>%mutate(subject = "002")
+df3 <- read_delim("subject_003.csv",delim=";") %>%mutate(subject = "003")
+df4 <- read_delim("subject_004.csv",delim=";") %>%mutate(subject = "004")
+df5 <- read_delim("subject_005.csv",delim=";") %>%mutate(subject = "005")
+df6 <- read_delim("subject_006.csv",delim=";") %>%mutate(subject = "006")
+df7 <- read_delim("subject_007.csv",delim=";") %>%mutate(subject = "007")
+df8 <- read_delim("subject_008.csv",delim=";") %>%mutate(subject = "008")
+df9 <- read_delim("subject_009.csv",delim=";") %>%mutate(subject = "009")
+df10 <- read_delim("subject_010.csv", delim = ";") %>% mutate(subject = "010")
+df11 <- read_delim("subject_011.csv", delim = ";") %>% mutate(subject = "011")
+df12 <- read_delim("subject_012.csv", delim = ";") %>% mutate(subject = "012")
+df13 <- read_delim("subject_013.csv", delim = ";") %>% mutate(subject = "013")
+df14 <- read_delim("subject_014.csv", delim = ";") %>% mutate(subject = "014")
+df15 <- read_delim("subject_011.csv", delim = ";") %>% mutate(subject = "015")
+
+clean_subject <- function(file, subject_id) {
+  read_delim(file, delim = ";") %>%
+    mutate(subject = subject_id) %>%
+    mutate(
+      trueCat = if_else(trueCat == "narrow", 1L, 2L),
+      congruentResponse = as.integer(congruentResponse)
+    ) %>%
+    filter(RT <= 20)
+}
+
+df  <- clean_subject("subject_000.csv", "000")
+df1 <- clean_subject("subject_001.csv", "001")
+df2 <- clean_subject("subject_002.csv", "002")
+df3 <- clean_subject("subject_003.csv", "003")
+df4 <- clean_subject("subject_004.csv", "004")
+df5 <- clean_subject("subject_005.csv", "005")
+df6 <- clean_subject("subject_006.csv", "006")
+df7 <- clean_subject("subject_007.csv", "007")
+df8 <- clean_subject("subject_008.csv", "008")
+df9 <- clean_subject("subject_009.csv", "009")
+df10 <- clean_subject("subject_010.csv", "010")
+df11 <- clean_subject("subject_011.csv", "011")
+df12 <- clean_subject("subject_012.csv", "012")
+df13 <- clean_subject("subject_013.csv", "013")
+df14 <- clean_subject("subject_014.csv", "014")
+df15 <- clean_subject("subject_015.csv", "015")
+
+df  <- df  %>% mutate(abs_orientation = abs(orientation))
+df1 <- df1 %>% mutate(abs_orientation = abs(orientation))
+df2 <- df2 %>% mutate(abs_orientation = abs(orientation))
+df3 <- df3 %>% mutate(abs_orientation = abs(orientation))
+df4 <- df4 %>% mutate(abs_orientation = abs(orientation))
+df5 <- df5 %>% mutate(abs_orientation = abs(orientation))
+df6 <- df6 %>% mutate(abs_orientation = abs(orientation))
+df7 <- df7 %>% mutate(abs_orientation = abs(orientation))
+df8 <- df8 %>% mutate(abs_orientation = abs(orientation))
+df9 <- df9 %>% mutate(abs_orientation = abs(orientation))
+df10 <- df10 %>% mutate(abs_orientation = abs(orientation))
+df11 <- df11 %>% mutate(abs_orientation = abs(orientation))
+df12 <- df12 %>% mutate(abs_orientation = abs(orientation))
+df13 <- df13 %>% mutate(abs_orientation = abs(orientation))
+df14 <- df14 %>% mutate(abs_orientation = abs(orientation))
+df15 <- df15 %>% mutate(abs_orientation = abs(orientation))
+
+
+data <- dplyr::bind_rows(
+  df, df1, df2, df3, df4, df5, df6, df7,
+  df8, df9, df10, df11, df12, df13, df14, df15
+)
+```
+
+# Behavioral analyses
+
+## Contrast levels
+
+```{r}
+#Accuracy x contrast
+acc_contrast <- data %>%
+  group_by(contrast) %>%
+  summarise(
+    n = n(),
+    p_corr = mean(congruentResponse),
+    se = sd(congruentResponse) / sqrt(n)
+  )
+
+
+ggplot(acc_contrast,
+                   aes(x = contrast, y = p_corr)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = p_corr - se, ymax = p_corr + se),
+                width = 0.005) +
+  scale_x_continuous(labels = percent_format(accuracy = 1)) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  labs(x = "Contrast level (%)",
+       y = "Proportion correct (%)")+
+    theme_bw(base_size = 14)
+
+
+
+#confidence x contrast
+conf_contrast <- data %>%
+  group_by(contrast) %>%              
+  summarise(
+    n       = n(),
+    m_conf  = mean(confRating, na.rm = TRUE),             
+    se_conf = sd(confRating, na.rm = TRUE) / sqrt(n)       
+  )
+
+ggplot(conf_contrast,
+                   aes(x = contrast, y = m_conf)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = m_conf - se_conf, ymax = m_conf + se_conf),
+                width = 0.005) +
+  scale_x_continuous(labels = percent_format(accuracy = 1)) +
+  labs(x = "Contrast level (%)",
+       y = "Mean Confidence")+
+    theme_bw(base_size = 14)
+
+#Rt x contrast
+rt_contrast <- data %>%
+  group_by(contrast) %>%  
+  summarise(
+    n       = n(),
+    mean_rt = mean(RT, na.rm = TRUE),
+    se_rt   = sd(RT, na.rm = TRUE) / sqrt(n)
+  )
+
+ggplot(rt_contrast,
+                aes(x = contrast, y = mean_rt)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_rt - se_rt, ymax = mean_rt + se_rt),width = 0.005) +
+  scale_x_continuous(labels = percent_format(accuracy = 1)) +
+  labs(x = "Contrast level (%)",
+       y = "Reaction time (s)") +
+  theme_bw(base_size = 14)
+
+```
+
+## Orientation
+
+```{r}
+data <- data %>%
+  mutate(
+    orientation_bin = cut(
+      abs_orientation,
+      breaks = c(0, 5, 10, 15, 20, 25, 30, 35, 40),
+      include.lowest = TRUE,
+      right = FALSE,
+      labels = c(
+        "0–5", "5–10", "10–15", "15–20",
+        "20–25", "25–30", "30–35", "35–40"
+      )
+    )
+  )
+
+# Accuracy x bin
+acc_bin <- data %>%
+  group_by(orientation_bin) %>%
+  summarise(
+    n      = n(),
+    p_corr = mean(congruentResponse),
+    se     = sd(congruentResponse) / sqrt(n),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(orientation_bin))     # fjern NA-bin
+
+ggplot(acc_bin, aes(x = orientation_bin, y = p_corr, group = 1)) +
+  geom_line(size = 1.1) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = p_corr - se,
+                    ymax = p_corr + se),
+                width = 0.1) +
+  scale_y_continuous(labels = percent_format(accuracy = 1),
+                     limits = c(0, 1)) +
+  labs(
+    x = "Orientation bin (°)",
+    y = "Porportion correct (%)"
+  ) +
+  theme_bw(base_size = 14)
+
+# Mean confidence x orientation
+conf_bin <- data %>%
+  group_by(orientation_bin) %>%
+  summarise(
+    n        = n(),
+    mean_conf = mean(confRating, na.rm = TRUE),
+    se_conf   = sd(confRating, na.rm = TRUE) / sqrt(n)
+  )%>%
+  filter(!is.na(orientation_bin))     # fjern NA-bin
+
+ggplot(conf_bin, aes(x = orientation_bin, y = mean_conf, group = 1)) +
+  geom_line(size = 1.1) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_conf - se_conf,
+                    ymax = mean_conf + se_conf),
+                width = 0.1) +
+  labs(
+    x = "Orientation bin (°)",
+    y = "Mean confidence"
+  ) +
+  theme_bw(base_size = 14)
+
+# RT x orientation 
+rt_bin <- data %>%
+  group_by(orientation_bin) %>%
+  summarise(
+    n       = n(),
+    mean_rt = mean(RT, na.rm = TRUE),
+    se_rt   = sd(RT, na.rm = TRUE) / sqrt(n)
+  )%>%
+  filter(!is.na(orientation_bin)) 
+  
+ggplot(rt_bin, aes(x = orientation_bin, y = mean_rt, group = 1)) +
+  geom_line(size = 1.1) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_rt - se_rt,
+                    ymax = mean_rt + se_rt),
+                width = 0.1) +
+  labs(
+    x = "Orientation bin (°)",
+    y = "Reaction time (s)"
+  ) +
+  theme_bw(base_size = 14)
+
+```
+
+# Modelling
+
+Make stan lists for all participants
+
+```{r}
+stan_data <- list(
+  N = nrow(df),
+  s = df$abs_orientation,
+  c = df$contrast,
+  response = as.integer(df$responseCat),
+  sigma1 = 3,
+  sigma2 = 12
+)
+
+stan_data1 <- list(
+  N = nrow(df1),
+  s = df1$abs_orientation,
+  c = df1$contrast,
+  response = as.integer(df1$responseCat),
+  sigma1 = 3,
+  sigma2 = 12
+)
+
+stan_data2 <- list(
+  N = nrow(df2),
+  s = df2$abs_orientation,
+  c = df2$contrast,
+  response = as.integer(df2$responseCat),
+  sigma1 = 3,
+  sigma2 = 12
+)
+
+stan_data3 <- list(
+  N = nrow(df3),
+  s = df3$abs_orientation,
+  c = df3$contrast,
+  response = as.integer(df3$responseCat),
+  sigma1 = 3,
+  sigma2 = 12
+)
+
+stan_data4 <- list(
+  N = nrow(df4),
+  s = df4$abs_orientation,
+  c = df4$contrast,
+  response = as.integer(df4$responseCat),
+  sigma1 = 3,
+  sigma2 = 12
+)
+
+stan_data5 <- list(
+  N = nrow(df5),
+  s = df5$abs_orientation,
+  c = df5$contrast,
+  response = as.integer(df5$responseCat),
+  sigma1 = 3,
+  sigma2 = 12
+)
+
+stan_data6 <- list(
+  N = nrow(df6),
+  s = df6$abs_orientation,
+  c = df6$contrast,
+  response = as.integer(df6$responseCat),
+  sigma1 = 3,
+  sigma2 = 12
+)
+
+stan_data7 <- list(
+  N = nrow(df7),
+  s = df7$abs_orientation,
+  c = df7$contrast,
+  response = as.integer(df7$responseCat),
+  sigma1 = 3,
+  sigma2 = 12
+)
+
+stan_data8 <- list(
+  N = nrow(df8),
+  s = df8$abs_orientation,
+  c = df8$contrast,
+  response = as.integer(df8$responseCat),
+  sigma1 = 3,
+  sigma2 = 12
+)
+
+stan_data9 <- list(
+  N = nrow(df9),
+  s = df9$abs_orientation,
+  c = df9$contrast,
+  response = as.integer(df9$responseCat),
+  sigma1 = 3,
+  sigma2 = 12
+)
+
+stan_data10 <- list(
+  N = nrow(df10),
+  s = df10$abs_orientation,
+  c = df10$contrast,
+  response = as.integer(df10$responseCat),
+  sigma1 = 3,
+  sigma2 = 12
+)
+
+stan_data11 <- list(
+  N = nrow(df11),
+  s = df11$abs_orientation,
+  c = df11$contrast,
+  response = as.integer(df11$responseCat),
+  sigma1 = 3,
+  sigma2 = 12
+)
+
+stan_data12 <- list(
+  N = nrow(df12),
+  s = df12$abs_orientation,
+  c = df12$contrast,
+  response = as.integer(df12$responseCat),
+  sigma1 = 3,
+  sigma2 = 12
+)
+
+stan_data13 <- list(
+  N = nrow(df13),
+  s = df13$abs_orientation,
+  c = df13$contrast,
+  response = as.integer(df13$responseCat),
+  sigma1 = 3,
+  sigma2 = 12
+)
+
+stan_data14 <- list(
+  N = nrow(df14),
+  s = df14$abs_orientation,
+  c = df14$contrast,
+  response = as.integer(df14$responseCat),
+  sigma1 = 3,
+  sigma2 = 12
+)
+
+stan_data15 <- list(
+  N = nrow(df15),
+  s = df15$abs_orientation,
+  c = df15$contrast,
+  response = as.integer(df15$responseCat),
+  sigma1 = 3,
+  sigma2 = 12
+)
+
+
+
+
+```
+
+Collect lists into one big list
+
+```{r}
+stan_list <- list(
+  "000" = stan_data,
+  "001" = stan_data1,
+  "002" = stan_data2,
+  "003" = stan_data3,
+  "004" = stan_data4,
+  "005" = stan_data5,
+  "006" = stan_data6,
+  "007" = stan_data7,
+  "008" = stan_data8,
+  "009" = stan_data9,
+  "010" = stan_data10,
+  "011" = stan_data11,
+  "012" = stan_data12,
+  "013" = stan_data13,
+  "014" = stan_data14,
+  "015" = stan_data15
+)
+
+
+```
+
+Run MLE
+
+```{r}
+model <- cmdstan_model("mle2.stan")
+
+mle_params <- imap_dfr(stan_list, function(d, sid) {
+  fit <- model$optimize(data = d, seed = 1)
+  est <- fit$mle()
+
+  tibble(
+    subject = sid,
+    N = d$N,
+    alpha  = est["alpha"],
+    beta   = est["beta"],
+    gamma  = est["gamma"],
+    lambda = est["lambda"],
+  )
+})
+
+mle_params
+```
+
+```{r}
+seeds <- c(123, 456, 789, 2024)
+
+fits <- lapply(seeds, function(s) {
+  cmdstanr::cmdstan_model("mle2.stan")$optimize(
+    data = stan_data,
+    seed = s
+  )
+})
+```
+
+Plot K(σ)
+
+```{r}
+# Defining functions
+sigma_from_contrast <- function(c, alpha, beta, gamma) {
+  sqrt((alpha * c)^(-beta) + gamma)
+}
+
+k_from_sigma <- function(sigma, sigma1 = 3, sigma2 = 12) {
+  k1 <- 0.5 * log((sigma^2 + sigma2^2) / (sigma^2 + sigma1^2)) 
+  k2 <- (sigma2^2 - sigma1^2) / (2 * (sigma^2 + sigma1^2) * (sigma^2 + sigma2^2))
+  sqrt(k1 / k2)
+}
+
+# contrast levels
+contrast_levels <- sort(unique(data$contrast))
+
+
+# k as a function pr subject x contrast
+k_by_subject_contrast <- expand_grid(
+  subject = unique(mle_params$subject),
+  contrast = sort(unique(data$contrast))
+) %>%
+  left_join(mle_params, by = "subject") %>%
+  mutate(
+    sigma = sigma_from_contrast(contrast, alpha, beta, gamma),
+    k = k_from_sigma(sigma, sigma1 = 3, sigma2 = 12)
+  )
+
+# errorbars 
+k_summary <- k_by_subject_contrast %>%
+  group_by(contrast) %>%
+  summarise(
+    mean_k = mean(k, na.rm = TRUE),
+    sd_k   = sd(k, na.rm = TRUE),
+    n      = sum(!is.na(k)),
+    se_k   = sd_k / sqrt(n),
+    .groups = "drop"
+  )
+
+
+
+```
+
+Plot
+
+```{r}
+# plot
+ggplot(k_summary, aes(x = factor(contrast), y = mean_k)) +
+  geom_line(size=3)+
+  geom_point(size = 3) +
+  geom_errorbar(
+    aes(ymin = mean_k - se_k, ymax = mean_k + se_k),
+    width = 0.1
+  ) +
+  geom_line(aes(group = 3)) +
+  scale_x_discrete(
+    labels = function(x) paste0(round(as.numeric(x) * 100, 1), "%")
+  ) +
+  labs(
+    x = "Contrast",
+    y = "K(σ)",
+    title = "K(σ) as a function of contrast (mean ± SEM)"
+  ) +
+  theme_bw()
+
+```
+
+```{r}
+df_plot <- k_by_subject_contrast %>%
+  mutate(
+    subject  = factor(subject),
+    contrast = factor(contrast),   # treat contrast as discrete
+    k        = as.numeric(k)
+  )
+
+ggplot(df_plot, aes(x = factor(contrast), y = k, group = subject, color = subject)) +
+  geom_line(alpha = 0.6, linewidth = 0.8) +
+  geom_point(size = 2, alpha = 0.8) +
+  labs(
+    x = "Contrast",
+    y = "K(σ)",
+    color = "Participant",
+    title = "K(σ) pr. participant as a function of contrast"
+  ) +
+   scale_x_discrete(
+    labels = function(x) paste0(round(as.numeric(x) * 100, 1), "%")
+  )+
+  theme_bw() +
+  theme(
+    legend.position = "right",
+  )
+
+
+```
+
+# Confidence analyses
+
+Does decision boundary systemtically change with contrast
+
+```         
+```
+
+When contrast is higher –\> decision boundary is significantly lower
+
+Does distance from K(sigma) say somehing about
+
+```{r}
+#Calculate Distances from s_i to K(sigma_i) and add to 
+
+data_with_k <- data %>%
+  left_join(
+    k_by_subject_contrast %>% select(subject, contrast, k, sigma),
+    by = c("subject", "contrast")
+  )
+data_with_k <- data_with_k %>%
+  mutate(
+    D = abs(abs(orientation) - k)
+  )
+
+data_with_k <- data_with_k %>%
+  mutate(D_star = k - abs(orientation))
+
+
+data_with_k$congruentResponse <- factor(
+  data_with_k$congruentResponse,
+  levels = c(0, 1),
+  labels = c("Incongruent", "Congruent")
+)
+
+data_with_k <- data_with_k %>%
+  group_by(contrast) %>%
+  mutate(
+    D_within = D - mean(D)
+  ) %>%
+  ungroup()
+
+
+distance_lm <- lmer(
+  confRating ~ D_within + congruentResponse + (1 | subject),
+  data = data_with_k
+)
+
+summary(distance_lm)
+
+pD <- ggpredict(
+  distance_lm,
+  terms = "D_within [all]"
+)
+
+ggplot(pD, aes(x = x, y = predicted)) +
+  geom_line(size = 1.2) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high),
+              alpha = 0.25) +
+  labs(
+    x = "Distance from decision boundary K(σ) (D)",
+    y = "Predicted confidence",
+    title = "Effect of distance from decision boundary on confidence"
+  ) +
+  theme_bw(base_size = 14)
+
+pCR <- ggpredict(
+  distance_lm,
+  terms = "congruentResponse"
+)
+
+ggplot(pCR, aes(x = x, y = predicted)) +
+  geom_point(size = 4) +
+  geom_errorbar(
+    aes(ymin = conf.low, ymax = conf.high),
+    width = 0.15
+  ) +
+  labs(
+    x = "Response congruency",
+    y = "Predicted confidence",
+    title = "Effect of response congruency on confidence"
+  ) +
+  theme_bw(base_size = 14)
+```
+
+```{r}
+
+
+# Vælg antal bins (12–20 er ofte fint)
+n_bins <- 30
+
+max_abs <- max(abs(data_with_k$D_within), na.rm = TRUE)
+breaks_sym <- seq(-max_abs, max_abs, length.out = n_bins + 1)
+
+df_binned_signed <- data_with_k %>%
+  mutate(
+    D_bin = cut(D_within, breaks = breaks_sym, include.lowest = TRUE)
+  ) %>%
+  group_by(D_bin) %>%
+  summarise(
+    D_mid = mean(D_within, na.rm = TRUE),
+    mean_conf = mean(confRating, na.rm = TRUE),
+    se_conf = sd(confRating, na.rm = TRUE) / sqrt(sum(!is.na(confRating))),
+    n = sum(!is.na(confRating)),
+    .groups = "drop"
+  )
+
+ggplot(df_binned_signed, aes(x = D_mid, y = mean_conf)) +
+  geom_hline(yintercept = mean(data_with_k$confRating, na.rm = TRUE),
+             linetype = "dashed", linewidth = 0.7, alpha = 0.6) +
+  geom_vline(xintercept = 0, linetype = "dashed", linewidth = 0.7, alpha = 0.6) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2.5) +
+  geom_errorbar(aes(ymin = mean_conf - se_conf, ymax = mean_conf + se_conf),
+                width = 0) +
+  labs(
+    x = expression(paste("Within-contrast centered distance (", hat(delta)["within"], ")")),
+    y = "Mean confidence (± SE)",
+    title = "Confidence as a function of within-contrast distance"
+  ) +
+  theme_bw(base_size = 14)
+
+```
