@@ -651,9 +651,6 @@ ggplot(pCR, aes(x = x, y = predicted)) +
 ```
 
 ```{r}
-
-
-# Vælg antal bins (12–20 er ofte fint)
 n_bins <- 30
 
 max_abs <- max(abs(data_with_k$D_within), na.rm = TRUE)
